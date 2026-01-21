@@ -247,16 +247,27 @@ Function RemoveAdminRoles
 }
 Function RemoveAppRoleAssignments
 {
-    $AppRoleAssignments = Get-MgUserAppRoleAssignment -UserId $UPN
-    if($AppRoleAssignments -ne $null)
+    try {
+        $Uri = "https://graph.microsoft.com/v1.0/users/$UPN/appRoleAssignments"
+        $AppRoleAssignmentsResponse = Invoke-MgGraphRequest -Method GET -Uri $Uri
+        $AppRoleAssignments = $AppRoleAssignmentsResponse.value
+    }
+    catch {
+        $ErrorLog = "$($UPN) - Get App Role Assignments Action - "+$_.Exception.Message
+        $ErrorLog>>$ErrorsLogFile
+        $AppRoleAssignments = $null
+    }
+
+    if($AppRoleAssignments -ne $null -and $AppRoleAssignments.Count -gt 0)
     {
         $AppRoleAssignments | ForEach-Object {
             try{
-                Remove-MgUserAppRoleAssignment -AppRoleAssignmentID $_.Id -UserId $UPN
+                $DeleteUri = "https://graph.microsoft.com/v1.0/users/$UPN/appRoleAssignments/$($_.id)"
+                Invoke-MgGraphRequest -Method DELETE -Uri $DeleteUri
             }
             catch
             {
-                $ErrorLog = "$($UPN) - Remove App Role Assignments Action - "+$Error[0].Exception.Message
+                $ErrorLog = "$($UPN) - Remove App Role Assignments Action - "+$_.Exception.Message
                 $ErrorLog>>$ErrorsLogFile
             }
         }
